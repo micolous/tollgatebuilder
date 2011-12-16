@@ -65,7 +65,7 @@ LOCAL_NAME="`echo $LAN_HN | cut -d. -f1`"
 echo ""
 echo "Beginning installation!"
 
-debootstrap --include=openssl,locales,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-ssl "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
+debootstrap --include=screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
 
 echo "Configuring..."
 
@@ -106,7 +106,7 @@ cat >> "${INSTALL_DIR}/etc/hosts" << EOF
 ${LAN_IP} ${LAN_HN} ${LOCAL_NAME}
 EOF
 
-echo $LOCAL_NAME > ${TARGET}/etc/hostname
+echo $LOCAL_NAME > ${INSTALL_DIR}/etc/hostname
 
 echo "Updating package sources..."
 chroot "${INSTALL_DIR}" /usr/bin/apt-get update
@@ -123,15 +123,35 @@ chroot "${INSTALL_DIR}" /usr/bin/apt-get install -y "linux-image-2.6-${KERNEL_AR
 echo "Building kernel modules..."
 chroot "${INSTALL_DIR}" /usr/bin/module-assistant -n -k "`echo ${INSTALL_DIR}/usr/src/linux-headers-*-${KERNEL_ARCH} | cut -b$[${#INSTALL_DIR}+1]-`" a-i xtables-addons
 
+echo "Installing tollgate dependancy python modules..."
+chroot "${INSTALL_DIR}" /usr/bin/pip install django pip
+
 echo "Grabbing tollgate MASTER...."
 chroot "${INSTALL_DIR}" /usr/bin/git clone git://github.com/micolous/tollgate.git /opt/tollgate
 
+echo "Populating the tollgate database..."
+chroot "${INSTALL_DIR}" /usr/bin/make -C /opt/tollgate
+chroot "${INSTALL_DIR}" /opt/tollgate/manage.py syncdb
+chroot "${INSTALL_DIR}" /opt/tollgate/manage.py migrate
+chroot "${INSTALL_DIR}" /opt/tollgate/scraper.py
+
+
 echo "Configurating apache2..."
-chroot "${INSTALL_DIR}" /usr/bin/a2enmod wsgi
-chroot "${INSTALL_DIR}" /usr/bin/a2enmod ssl
+chroot "${INSTALL_DIR}" /usr/sbin/a2enmod wsgi
+chroot "${INSTALL_DIR}" /usr/sbin/a2enmod ssl
+chroot "${INSTALL_DIR}" /usr/sbin/a2ensite default
+chroot "${INSTALL_DIR}" /usr/sbin/a2dissite default-ssl
 # the example configuration is pretty much fine, let's steal that.
-sed "s/portal.example.tollgate.org.au/${LAN_HN}/g" < ${INSTALL_DIR}/opt/tollgate/example/apache2/tollgate-vhost > ${INSTALL_DIR}/etc/apache2/sites-available/default-ssl
+sed "s/portal.example.tollgate.org.au/${LAN_HN}/g" < ${INSTALL_DIR}/opt/tollgate/example/apache2/tollgate-vhost > ${INSTALL_DIR}/etc/apache2/sites-available/default
 
 echo "Generating certificates..."
-
+chroot "${INSTALL_DIR}" /bin/sh << EOF
+#!/bin/sh
+mkdir -p /etc/apache2/ssl
+chmod 700 /etc/apache2/ssl
+cd /etc/apache2/ssl
+openssl req -new -out tollgate-cert.csr -passout pass:password -subj "/C=AU/ST=FAKE/L=Example/O=tollgate example certificate/OU=captive portal/CN=${LAN_HN}"
+openssl rsa -passin pass:password -in privkey.pem -out tollgate-priv.key
+openssl x509 -in tollgate-cert.csr -out tollgate-cert.pem -req -signkey tollgate-priv.key -days 3650
+EOF
 
