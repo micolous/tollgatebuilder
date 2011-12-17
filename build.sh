@@ -65,7 +65,7 @@ LOCAL_NAME="`echo $LAN_HN | cut -d. -f1`"
 echo ""
 echo "Beginning installation!"
 
-debootstrap --include=screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
+debootstrap --include=less,screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-python "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
 
 echo "Configuring..."
 
@@ -90,7 +90,7 @@ EOF
 cat >> "${INSTALL_DIR}/etc/dnsmasq.d/tollgate.conf" << EOF
 interface=${LAN_IF}
 expand-hosts
-domain=${DOMAIN},${LAN_IF}/${LAN_NM}
+domain=${DOMAIN},${LAN_IP}/${LAN_NM}
 dhcp-range=${LAN_DHCP_START},${LAN_DHCP_END},7d
 
 # lets tell windows not to be silly
@@ -124,21 +124,38 @@ echo "Building kernel modules..."
 chroot "${INSTALL_DIR}" /usr/bin/module-assistant -n -k "`echo ${INSTALL_DIR}/usr/src/linux-headers-*-${KERNEL_ARCH} | cut -b$[${#INSTALL_DIR}+1]-`" a-i xtables-addons
 
 echo "Installing tollgate dependancy python modules..."
-chroot "${INSTALL_DIR}" /usr/bin/pip install django pip
+# this is disabled because pypi is broken.
+#chroot "${INSTALL_DIR}" /usr/bin/pip install django South
+
+# TODO: Implement signature checks.
+chroot "${INSTALL_DIR}" /usr/bin/wget -O /usr/src/Django-1.3.1.tar.gz http://www.djangoproject.com/download/1.3.1/tarball/
+chroot "${INSTALL_DIR}" /usr/bin/wget -O /usr/src/south-0.7.3.tar.gz http://www.aeracode.org/releases/south/south-0.7.3.tar.gz
+chroot "${INSTALL_DIR}" /usr/bin/pip install /usr/src/Django-1.3.1.tar.gz
+chroot "${INSTALL_DIR}" /usr/bin/pip install /usr/src/south-0.7.3.tar.gz
 
 echo "Grabbing tollgate MASTER...."
 chroot "${INSTALL_DIR}" /usr/bin/git clone git://github.com/micolous/tollgate.git /opt/tollgate
 
 echo "Populating the tollgate database..."
-chroot "${INSTALL_DIR}" /usr/bin/make -C /opt/tollgate
-chroot "${INSTALL_DIR}" /opt/tollgate/manage.py syncdb
-chroot "${INSTALL_DIR}" /opt/tollgate/manage.py migrate
-chroot "${INSTALL_DIR}" /opt/tollgate/scraper.py
+chroot "${INSTALL_DIR}" /bin/sh << EOF
+cd /opt/tollgate
+make
+./manage.py syncdb --noinput
+./manage.py migrate --noinput
+./scraper.py
+EOF
 
+echo "Configuring gitweb..."
+echo "SOURCE_URL='https://${LAN_HN}/gitweb/'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
+cp ${INSTALL_DIR}/etc/gitweb.conf ${INSTALL_DIR}/etc/gitweb.conf.default
+sed 's/\/var\/cache\/git/\/opt\/tollgate/' < ${INSTALL_DIR}/etc/gitweb.conf.default > ${INSTALL_DIR}/etc/gitweb.conf
 
 echo "Configurating apache2..."
 chroot "${INSTALL_DIR}" /usr/sbin/a2enmod wsgi
+chroot "${INSTALL_DIR}" /usr/sbin/a2enmod python
 chroot "${INSTALL_DIR}" /usr/sbin/a2enmod ssl
+chroot "${INSTALL_DIR}" /usr/sbin/a2enmod rewrite
+# all the configuration for tollgate is in one site (default), so we disable default-ssl because we don't use it for anything.
 chroot "${INSTALL_DIR}" /usr/sbin/a2ensite default
 chroot "${INSTALL_DIR}" /usr/sbin/a2dissite default-ssl
 # the example configuration is pretty much fine, let's steal that.
@@ -151,7 +168,27 @@ mkdir -p /etc/apache2/ssl
 chmod 700 /etc/apache2/ssl
 cd /etc/apache2/ssl
 openssl req -new -out tollgate-cert.csr -passout pass:password -subj "/C=AU/ST=FAKE/L=Example/O=tollgate example certificate/OU=captive portal/CN=${LAN_HN}"
-openssl rsa -passin pass:password -in privkey.pem -out tollgate-priv.key
-openssl x509 -in tollgate-cert.csr -out tollgate-cert.pem -req -signkey tollgate-priv.key -days 3650
+openssl rsa -passin pass:password -in privkey.pem -out tollgate-priv.pem
+openssl x509 -in tollgate-cert.csr -out tollgate-cert.pem -req -signkey tollgate-priv.pem -days 3650
 EOF
 
+echo "Configuring crontab..."
+echo "*/10 * * * * root cd /opt/tollgate; ./manage.py refresh_hosts" > ${INSTALL_DIR}/etc/cron.d/tollgate
+echo "@reboot root /opt/tollgate/backend/tollgate.sh" >> ${INSTALL_DIR}/etc/cron.d/tollgate
+
+echo "Configiring tollgate..."
+# annoyingly, this discards all the example comments.
+chroot "${INSTALL_DIR}" /usr/bin/python << EOF
+from ConfigParser import ConfigParser
+c = ConfigParser()
+c.read('/opt/tollgate/backend/tollgate.example.ini')
+c.set('unmetered', 'tollgate', '${LAN_IP}')
+c.set('tollgate', 'internal_iface', '${LAN_IF}')
+c.set('tollgate', 'external_iface', '${WAN_IF}')
+f = open('/opt/tollgate/backend/tollgate.ini', 'wb')
+c.write(f)
+f.close()
+EOF
+
+echo "LAN_IFACE = '${LAN_IF}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
+echo "LAN_SUBNET = '${LAN_IP}/${LAN_NM}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
