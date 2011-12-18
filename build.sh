@@ -1,6 +1,7 @@
 #!/bin/sh
 # build.sh
 # Builds Debian environment for tollgate.
+# Copyright 2011 Michael Farrell
 #
 # Install the following first!
 #   apt-get install debootstrap
@@ -38,26 +39,10 @@ echo "Kernel image . . . : linux-image-${KERNEL_ARCH}"
 echo ""
 echo "Beware: this will consume about 2GB of disk space, and download"
 echo "approximately 400MB from the specified mirror.  It is advisable to use"
-echo "a local Debian mirror."
+echo "a local Debian mirror, especially if you are hacking on this software."
 echo ""
 echo "Press RETURN to continue, or ^C to cancel..."
 read Y
-
-# calculate the reverse domain
-
-if [ $LAN_NM -gt 30 ]; then
-	echo "Netmask greater than 30"
-	exit 1
-elif [ $LAN_NM -gt 23 ]; then
-	REVERSE_DNS="`echo $LAN_NM | cut -d. -f3,2,1`.in-addr.arpa"
-elif [ $LAN_NM -gt 15 ]; then
-	REVERSE_DNS="`echo $LAN_NM | cut -d. -f2,1`.in-addr.arpa"
-elif [ $LAN_NM -gt 7 ]; then
-	REVERSE_DNS="`echo $LAN_NM | cut -d. -f1`.in-addr.arpa"
-else
-	echo "Netmask less than 8"
-	exit 1
-fi
 
 DOMAIN="`echo $LAN_HN | cut -d. -f2-`"
 LOCAL_NAME="`echo $LAN_HN | cut -d. -f1`"
@@ -144,6 +129,9 @@ make
 ./manage.py migrate --noinput
 ./scraper.py
 EOF
+
+echo "Configuring DBUS..."
+cp ${INSTALL_DIR}/opt/tollgate/backend/dbus-system-tollgate.conf ${INSTALL_DIR}/etc/dbus-1/system.d/
 
 echo "Configuring gitweb..."
 echo "SOURCE_URL='https://${LAN_HN}/gitweb/'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
