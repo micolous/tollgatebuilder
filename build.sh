@@ -64,7 +64,7 @@ iface ${LAN_IF} inet static
   netmask ${LAN_NM}
 EOF
 
-cat >> "${INSTALL_DIR}/etc/apt/souces.list" << EOF
+cat >> "${INSTALL_DIR}/etc/apt/sources.list" << EOF
 deb-src ${DEBIAN_MIRROR} ${DEBIAN_VER} main
 
 # security mirror
