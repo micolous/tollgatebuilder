@@ -87,6 +87,11 @@ dhcp-option=vendor:MSFT,2,1i # tell windows to release the lease when shutting d
 dhcp-authoritative
 EOF
 
+# WARNING: If installing manually, or over the top of an existing Debian installation, be sure to
+# set the primary LAN IP here.  By default Debian will put an entry for 127.0.1.1 here for the
+# hostname, which dnsmasq will then report to clients.
+#
+# TIP: dnsmasq will read this for static A/AAAA/PTR records.
 cat >> "${INSTALL_DIR}/etc/hosts" << EOF
 ${LAN_IP} ${LAN_HN} ${LOCAL_NAME}
 EOF

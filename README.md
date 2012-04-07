@@ -4,4 +4,6 @@
 
 The purpose of this is to help automate the creation of tollgate machines / environments.
 
-Copyright 2011 Michael Farrell <http://micolous.id.au>
+This is more or less the "official" installation documentation.
+
+Copyright 2011-2012 Michael Farrell <http://micolous.id.au>
