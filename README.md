@@ -6,4 +6,6 @@ The purpose of this is to help automate the creation of tollgate machines / envi
 
 This is more or less the "official" installation documentation.
 
+These scripts are available under the same licensing terms as tollgate itself.
+
 Copyright 2011-2012 Michael Farrell <http://micolous.id.au>
