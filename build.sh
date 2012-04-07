@@ -138,6 +138,18 @@ EOF
 echo "Configuring DBUS..."
 cp ${INSTALL_DIR}/opt/tollgate/backend/dbus-system-tollgate.conf ${INSTALL_DIR}/etc/dbus-1/system.d/
 
+# WARNING: You may be asking yourself "why am I setting up gitweb?"  The reason is that under the
+# terms of the Affero GPL (which tollgate is licensed), making the software available as a network
+# service is considered a form of distribution.  As a result, you must provide ALL users with your 
+# version of the source code.
+# 
+# Linking back to the "official" repository isn't enough if you've made changes, nor should you rely
+# on it's availablity -- your upstream is under no obligation to provide sources to your users, only
+# you, and you may expose yourself to legal liabilities.
+#
+# You can skip this step if you are making the source available by some other means, such as an
+# external Git hosting service (like GitHub and Gitosis), however you must set the URL in the
+# settings_local.py file.
 echo "Configuring gitweb..."
 echo "SOURCE_URL='https://${LAN_HN}/gitweb/'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
 cp ${INSTALL_DIR}/etc/gitweb.conf ${INSTALL_DIR}/etc/gitweb.conf.default
