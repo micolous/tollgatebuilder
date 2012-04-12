@@ -63,7 +63,7 @@ LOCAL_NAME="`echo $LAN_HN | cut -d. -f1`"
 echo ""
 echo "Beginning installation!"
 
-debootstrap --include=less,screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-python "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
+debootstrap --include=less,screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-python,mysql-server,python-mysqldb "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
 
 echo "Configuring..."
 
@@ -145,7 +145,7 @@ cd /opt/tollgate
 make
 ./manage.py syncdb --noinput
 ./manage.py migrate --noinput
-./scraper.py
+./manage.py scraper
 EOF
 
 echo "Configuring DBUS..."
