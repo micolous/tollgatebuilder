@@ -178,9 +178,6 @@ chroot "${INSTALL_DIR}" /usr/sbin/a2ensite default
 chroot "${INSTALL_DIR}" /usr/sbin/a2dissite default-ssl
 # the example configuration is pretty much fine, let's steal that.
 sed "s/portal.example.tollgate.org.au/${LAN_HN}/g" < ${INSTALL_DIR}/opt/tollgate/example/apache2/tollgate-vhost > ${INSTALL_DIR}/etc/apache2/sites-available/default
-# insert ports configuration for the captivity handler.
-echo "NameVirtualHost *:81" >> ${INSTALL_DIR}/etc/apache2/ports.conf
-echo "Listen 81" >> ${INSTALL_DIR}/etc/apache2/ports.conf
 
 echo "Generating certificates..."
 chroot "${INSTALL_DIR}" /bin/sh << EOF
@@ -213,3 +210,6 @@ EOF
 
 echo "LAN_IFACE = '${LAN_IF}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
 echo "LAN_SUBNET = '${LAN_IP}/${LAN_NM}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
+echo "DATABASE_NAME = '/opt/tollgate/tollgate.db3'" >> ${INSTALL_DIR}/opt/tollgate/settings.py
+
+
