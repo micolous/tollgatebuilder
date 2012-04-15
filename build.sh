@@ -63,7 +63,7 @@ LOCAL_NAME="`echo $LAN_HN | cut -d. -f1`"
 echo ""
 echo "Beginning installation!"
 
-debootstrap --include=less,screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-pip,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-python,mysql-server,python-mysqldb "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
+debootstrap --include=less,screen,nmap,python-dbus,gitweb,openssh-server,openssh-client,joe,openssl,locales,python-iplib,python-lxml,python-setuptools,python-daemon,python-progressbar,git,dnsmasq,iptables,module-assistant,xtables-addons-source,xtables-addons-common,build-essential,apache2,libapache2-mod-wsgi,libapache2-mod-python,mysql-server,python-mysqldb "${DEBIAN_VER}" "${INSTALL_DIR}" "${DEBIAN_MIRROR}"
 
 echo "Configuring..."
 
@@ -126,22 +126,19 @@ chroot "${INSTALL_DIR}" /usr/bin/apt-get install -y "linux-image-2.6-${KERNEL_AR
 echo "Building kernel modules..."
 chroot "${INSTALL_DIR}" /usr/bin/module-assistant -n -k "`echo ${INSTALL_DIR}/usr/src/linux-headers-*-${KERNEL_ARCH} | cut -b$[${#INSTALL_DIR}+1]-`" a-i xtables-addons
 
-echo "Installing tollgate dependancy python modules..."
-# this is disabled because pypi is broken.
-#chroot "${INSTALL_DIR}" /usr/bin/pip install django South
-
-# TODO: Implement signature checks.
-chroot "${INSTALL_DIR}" /usr/bin/wget -O /usr/src/Django-1.3.1.tar.gz http://www.djangoproject.com/download/1.3.1/tarball/
-chroot "${INSTALL_DIR}" /usr/bin/wget -O /usr/src/south-0.7.3.tar.gz http://www.aeracode.org/releases/south/south-0.7.3.tar.gz
-chroot "${INSTALL_DIR}" /usr/bin/pip install /usr/src/Django-1.3.1.tar.gz
-chroot "${INSTALL_DIR}" /usr/bin/pip install /usr/src/south-0.7.3.tar.gz
-
 echo "Grabbing tollgate MASTER...."
 chroot "${INSTALL_DIR}" /usr/bin/git clone git://github.com/micolous/tollgate.git /opt/tollgate
 
-echo "Populating the tollgate database..."
+echo "Installing tollgate dependancy python modules and populating database..."
 chroot "${INSTALL_DIR}" /bin/sh << EOF
+# first we update pip with easy_install
+# the version in debian is old and broken.
+/usr/bin/easy_install pip
+
+# now install other things
 cd /opt/tollgate
+/usr/local/bin/pip install -r requirements.txt
+
 make
 ./manage.py syncdb --noinput
 ./manage.py migrate --noinput
