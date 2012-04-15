@@ -188,8 +188,7 @@ openssl x509 -in tollgate-cert.csr -out tollgate-cert.pem -req -signkey tollgate
 EOF
 
 echo "Configuring crontab..."
-echo "*/10 * * * * root cd /opt/tollgate; ./manage.py refresh_hosts" > ${INSTALL_DIR}/etc/cron.d/tollgate
-echo "@reboot root /opt/tollgate/backend/tollgate.sh" >> ${INSTALL_DIR}/etc/cron.d/tollgate
+cp ${INSTALL_DIR}/opt/tollgate/example/tollgate.cron ${INSTALL_DIR}/etc/cron.d/tollgate
 
 echo "Configiring tollgate..."
 # annoyingly, this discards all the example comments.
@@ -209,4 +208,12 @@ echo "LAN_IFACE = '${LAN_IF}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
 echo "LAN_SUBNET = '${LAN_IP}/${LAN_NM}'" >> ${INSTALL_DIR}/opt/tollgate/settings_local.py
 echo "DATABASE_NAME = '/opt/tollgate/tollgate.db3'" >> ${INSTALL_DIR}/opt/tollgate/settings.py
 
-
+echo "Configuring init scripts..."
+chroot "${INSTALL_DIR}" /bin/sh << EOF
+ln -s /opt/tollgate/platform/debian/init.d/tollgate-backend /etc/init.d/
+ln -s /opt/tollgate/platform/debian/init.d/tollgate-captivity /etc/init.d/
+cp /opt/tollgate/platform/debian/default/tollgate-captivity /etc/default/
+echo 'DAEMON_ARGS="-l https://${LAN_HN}"' >> /etc/default/tollgate-captivity
+update-rc.d tollgate-backend defaults
+update-rc.d tollgate-captivity defaults
+EOF
